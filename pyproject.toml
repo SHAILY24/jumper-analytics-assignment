@@ -1,0 +1,29 @@
+[project]
+name = "content-engagement-analytics"
+version = "1.0.0"
+description = "PostgreSQL-based content engagement analytics system"
+authors = [{name = "Shaily Sharma", email = "shailysharma873@gmail.com"}]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0.0",
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "plotly>=5.18.0",
+    "jupyter>=1.0.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "matplotlib>=3.10.7",
+    "seaborn>=0.13.2",
+    "nbconvert>=7.16.6",
+    "faker>=22.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src", "api"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
