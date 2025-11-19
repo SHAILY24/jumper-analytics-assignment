@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engagement Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            color: #e74c3c;
+            padding: 20px;
+            background: #ffe5e5;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Content Engagement Analytics</h1>
+            <p class="subtitle">Real-time insights from PostgreSQL analytics system</p>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalPosts">-</div>
+                <div class="stat-label">Total Posts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalEngagements">-</div>
+                <div class="stat-label">Total Engagements</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgEngagement">-</div>
+                <div class="stat-label">Avg per Post</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="topCategory">-</div>
+                <div class="stat-label">Top Category</div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <h2 class="card-title">Top Categories by Engagement</h2>
+                <div class="chart-container">
+                    <canvas id="categoriesChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Engagement by Day of Week</h2>
+                <div class="chart-container">
+                    <canvas id="dayOfWeekChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Engagement Heatmap: Hour vs Day</h2>
+            <div class="chart-container" style="height: 500px;">
+                <canvas id="heatmapChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 30px;">
+            <h2 class="card-title">High-Opportunity Authors (Coaching Targets)</h2>
+            <div id="opportunityTable"></div>
+        </div>
+
+        <div class="card" style="margin-top: 30px;">
+            <h2 class="card-title">Top Performing Posts</h2>
+            <div id="postsTable"></div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL - works for both local and production
+        const API_BASE = window.location.protocol + '//' + window.location.host;
+
+        // Fetch data and render dashboard
+        async function loadDashboard() {
+            try {
+                // Fetch all data in parallel
+                const [categories, patterns, opportunityAuthors, posts] = await Promise.all([
+                    fetch(`${API_BASE}/categories/top?limit=10`).then(r => r.json()),
+                    fetch(`${API_BASE}/analytics/engagement-patterns`).then(r => r.json()),
+                    fetch(`${API_BASE}/analytics/opportunity-authors?limit=15`).then(r => r.json()),
+                    fetch(`${API_BASE}/sample/posts?limit=20`).then(r => r.json())
+                ]);
+
+                // Update stats
+                updateStats(categories, posts);
+
+                // Render charts
+                renderCategoriesChart(categories);
+                renderDayOfWeekChart(patterns);
+                renderHeatmap(patterns);
+
+                // Render tables
+                renderOpportunityTable(opportunityAuthors);
+                renderPostsTable(posts);
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                document.body.innerHTML += '<div class="error">Failed to load dashboard data. Make sure the API is running.</div>';
+            }
+        }
+
+        function updateStats(categories, posts) {
+            const totalPosts = posts.length * 50; // Approximate
+            const totalEngagements = categories.reduce((sum, c) => sum + c.total_engagements, 0);
+            const avgEngagement = (totalEngagements / categories.reduce((sum, c) => sum + c.total_posts, 0)).toFixed(2);
+
+            document.getElementById('totalPosts').textContent = totalPosts.toLocaleString();
+            document.getElementById('totalEngagements').textContent = totalEngagements.toLocaleString();
+            document.getElementById('avgEngagement').textContent = avgEngagement;
+            document.getElementById('topCategory').textContent = categories[0]?.category || '-';
+        }
+
+        function renderCategoriesChart(categories) {
+            const ctx = document.getElementById('categoriesChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: categories.map(c => c.category),
+                    datasets: [{
+                        label: 'Total Engagements',
+                        data: categories.map(c => c.total_engagements),
+                        backgroundColor: '#667eea',
+                        borderColor: '#764ba2',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderDayOfWeekChart(patterns) {
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const engagementsByDay = Array(7).fill(0);
+
+            patterns.forEach(p => {
+                engagementsByDay[p.day_of_week] += p.total_engagements;
+            });
+
+            const ctx = document.getElementById('dayOfWeekChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dayNames,
+                    datasets: [{
+                        label: 'Engagements',
+                        data: engagementsByDay,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderHeatmap(patterns) {
+            // Create heatmap data structure
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const hours = Array.from({length: 24}, (_, i) => i);
+
+            // Build matrix
+            const matrix = Array(24).fill(0).map(() => Array(7).fill(0));
+            patterns.forEach(p => {
+                matrix[p.hour_of_day][p.day_of_week] = p.total_engagements;
+            });
+
+            // Flatten for Chart.js matrix
+            const dataPoints = [];
+            for (let hour = 0; hour < 24; hour++) {
+                for (let day = 0; day < 7; day++) {
+                    dataPoints.push({
+                        x: day,
+                        y: hour,
+                        v: matrix[hour][day]
+                    });
+                }
+            }
+
+            const ctx = document.getElementById('heatmapChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Engagement Intensity',
+                        data: dataPoints.map(p => ({x: p.x, y: p.y})),
+                        backgroundColor: dataPoints.map(p => {
+                            const intensity = Math.min(p.v / 30, 1);
+                            return `rgba(102, 126, 234, ${intensity})`;
+                        }),
+                        borderColor: '#764ba2',
+                        pointRadius: 12,
+                        pointHoverRadius: 15
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = dataPoints[context.dataIndex];
+                                    return `${dayNames[point.x]} ${point.y}:00 - ${point.v} engagements`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            min: -0.5,
+                            max: 6.5,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return dayNames[value] || '';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Day of Week'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            min: -0.5,
+                            max: 23.5,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return value % 2 === 0 ? `${value}:00` : '';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Hour of Day'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderOpportunityTable(authors) {
+            const html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Author</th>
+                            <th>Category</th>
+                            <th>Posts</th>
+                            <th>Current Avg</th>
+                            <th>Category Median</th>
+                            <th>Opportunity Score</th>
+                            <th>Segment</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${authors.map(a => `
+                            <tr>
+                                <td><strong>${a.author_name}</strong></td>
+                                <td>${a.category}</td>
+                                <td>${a.total_posts}</td>
+                                <td>${a.avg_engagement_per_post.toFixed(2)}</td>
+                                <td>${a.category_median.toFixed(2)}</td>
+                                <td><strong>${a.opportunity_score}</strong></td>
+                                <td><span class="badge badge-warning">${a.performance_segment}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            document.getElementById('opportunityTable').innerHTML = html;
+        }
+
+        function renderPostsTable(posts) {
+            const html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Post</th>
+                            <th>Author</th>
+                            <th>Category</th>
+                            <th>Views</th>
+                            <th>Likes</th>
+                            <th>Comments</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${posts.slice(0, 15).map(p => `
+                            <tr>
+                                <td><strong>${p.title.substring(0, 50)}...</strong></td>
+                                <td>${p.author}</td>
+                                <td>${p.category}</td>
+                                <td>${p.views}</td>
+                                <td>${p.likes}</td>
+                                <td>${p.comments}</td>
+                                <td><strong>${p.total_engagements}</strong></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            document.getElementById('postsTable').innerHTML = html;
+        }
+
+        // Load dashboard on page load
+        loadDashboard();
+    </script>
+</body>
+</html>

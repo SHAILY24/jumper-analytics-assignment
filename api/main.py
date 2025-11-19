@@ -10,13 +10,21 @@ from typing import Optional
 import psycopg2
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
+import os
 
 app = FastAPI(
     title="Engagement Analytics API",
     description="Real-time engagement trends and analytics",
     version="1.0.0"
 )
+
+# Mount static files
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # CORS middleware for frontend integration
 app.add_middleware(
@@ -83,6 +91,51 @@ class CategoryRanking(BaseModel):
     rank: int
 
 
+class SamplePost(BaseModel):
+    post_id: int
+    title: str
+    author: str
+    category: str
+    publish_date: str
+    views: int
+    likes: int
+    comments: int
+    shares: int
+    total_engagements: int
+
+
+class SampleAuthor(BaseModel):
+    author_id: int
+    name: str
+    category: str
+    total_posts: int
+    total_engagements: int
+    avg_engagement_per_post: float
+    performance_segment: str
+
+
+class EngagementPattern(BaseModel):
+    hour_of_day: int
+    day_of_week: int
+    day_name: str
+    total_engagements: int
+    views: int
+    likes: int
+    comments: int
+    shares: int
+
+
+class OpportunityAuthor(BaseModel):
+    author_id: int
+    author_name: str
+    category: str
+    total_posts: int
+    avg_engagement_per_post: float
+    category_median: float
+    opportunity_score: int
+    performance_segment: str
+
+
 @app.get("/")
 def root():
     """API root endpoint."""
@@ -91,10 +144,25 @@ def root():
         "endpoints": [
             "/engagement/{post_id}",
             "/author/{author_id}/trends",
-            "/categories/top"
+            "/categories/top",
+            "/sample/posts",
+            "/sample/authors",
+            "/analytics/engagement-patterns",
+            "/analytics/opportunity-authors"
         ],
+        "dashboard": "/dashboard",
         "docs": "/docs"
     }
+
+
+@app.get("/dashboard")
+def get_dashboard():
+    """Serve the interactive analytics dashboard."""
+    dashboard_path = os.path.join(os.path.dirname(__file__), "static", "dashboard.html")
+    if os.path.exists(dashboard_path):
+        return FileResponse(dashboard_path)
+    else:
+        raise HTTPException(status_code=404, detail="Dashboard not found")
 
 
 @app.get("/engagement/{post_id}", response_model=PostEngagement)
@@ -322,6 +390,257 @@ def get_top_categories(
                 avg_engagement_per_post=float(row[3]),
                 top_author=row[4] or "Unknown",
                 rank=row[5]
+            )
+            for row in results
+        ]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.get("/sample/posts", response_model=list[SamplePost])
+def get_sample_posts(limit: int = Query(10, ge=1, le=100)):
+    """
+    Get sample posts with engagement metrics for data exploration.
+
+    Args:
+        limit: Number of posts to return (1-100)
+
+    Returns:
+        List of posts with engagement statistics
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        query = """
+        SELECT
+            p.post_id,
+            p.title,
+            a.name AS author,
+            p.category,
+            p.publish_timestamp::date AS publish_date,
+            es.view_count AS views,
+            es.like_count AS likes,
+            es.comment_count AS comments,
+            es.share_count AS shares,
+            es.total_engagements
+        FROM posts p
+        JOIN authors a ON p.author_id = a.author_id
+        JOIN engagement_stats es ON p.post_id = es.post_id
+        ORDER BY es.total_engagements DESC
+        LIMIT %s
+        """
+
+        cursor.execute(query, (limit,))
+        results = cursor.fetchall()
+
+        return [
+            SamplePost(
+                post_id=row[0],
+                title=row[1],
+                author=row[2],
+                category=row[3],
+                publish_date=str(row[4]),
+                views=row[5],
+                likes=row[6],
+                comments=row[7],
+                shares=row[8],
+                total_engagements=row[9]
+            )
+            for row in results
+        ]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.get("/sample/authors", response_model=list[SampleAuthor])
+def get_sample_authors(limit: int = Query(10, ge=1, le=50)):
+    """
+    Get sample authors with performance metrics.
+
+    Args:
+        limit: Number of authors to return (1-50)
+
+    Returns:
+        List of authors with engagement statistics and performance segment
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        query = """
+        WITH author_performance AS (
+            SELECT
+                a.author_id,
+                a.name AS author_name,
+                a.author_category,
+                COUNT(DISTINCT p.post_id) AS total_posts,
+                SUM(es.total_engagements) AS total_engagements,
+                ROUND(AVG(es.total_engagements), 2) AS avg_engagement_per_post
+            FROM authors a
+            JOIN posts p ON a.author_id = p.author_id
+            JOIN engagement_stats es ON p.post_id = es.post_id
+            WHERE p.publish_timestamp >= CURRENT_DATE - INTERVAL '90 days'
+            GROUP BY a.author_id, a.name, a.author_category
+        ),
+        category_benchmarks AS (
+            SELECT
+                author_category,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY avg_engagement_per_post) AS median_engagement,
+                PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY avg_engagement_per_post) AS p75_engagement
+            FROM author_performance
+            GROUP BY author_category
+        )
+        SELECT
+            ap.author_id,
+            ap.author_name,
+            ap.author_category,
+            ap.total_posts,
+            ap.total_engagements,
+            ap.avg_engagement_per_post,
+            CASE
+                WHEN ap.total_posts >= 10 AND ap.avg_engagement_per_post < cb.median_engagement
+                THEN 'High Volume, Low Engagement'
+                WHEN ap.total_posts >= 10 AND ap.avg_engagement_per_post >= cb.p75_engagement
+                THEN 'High Volume, High Engagement'
+                WHEN ap.total_posts < 5 AND ap.avg_engagement_per_post >= cb.p75_engagement
+                THEN 'Low Volume, High Quality'
+                ELSE 'Average'
+            END AS performance_segment
+        FROM author_performance ap
+        JOIN category_benchmarks cb ON ap.author_category = cb.author_category
+        ORDER BY ap.total_engagements DESC
+        LIMIT %s
+        """
+
+        cursor.execute(query, (limit,))
+        results = cursor.fetchall()
+
+        return [
+            SampleAuthor(
+                author_id=row[0],
+                name=row[1],
+                category=row[2],
+                total_posts=row[3],
+                total_engagements=row[4],
+                avg_engagement_per_post=float(row[5]),
+                performance_segment=row[6]
+            )
+            for row in results
+        ]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.get("/analytics/engagement-patterns", response_model=list[EngagementPattern])
+def get_engagement_patterns(
+    day_of_week: Optional[int] = Query(None, ge=0, le=6, description="Filter by day of week (0=Sunday, 6=Saturday)")
+):
+    """
+    Get hourly and daily engagement patterns for optimal posting time analysis.
+
+    Args:
+        day_of_week: Optional filter for specific day (0-6)
+
+    Returns:
+        Engagement breakdown by hour and day of week
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Read the SQL file
+        sql_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'sql', 'engagement_patterns.sql')
+        with open(sql_path, 'r') as f:
+            base_query = f.read()
+
+        # If day_of_week filter is provided, wrap the query
+        if day_of_week is not None:
+            query = f"""
+            SELECT * FROM ({base_query}) AS patterns
+            WHERE day_of_week = %s
+            ORDER BY hour_of_day
+            """
+            cursor.execute(query, (day_of_week,))
+        else:
+            cursor.execute(base_query)
+
+        results = cursor.fetchall()
+
+        return [
+            EngagementPattern(
+                hour_of_day=row[0],
+                day_of_week=row[1],
+                day_name=row[2],
+                views=row[3],
+                likes=row[4],
+                comments=row[5],
+                shares=row[6],
+                total_engagements=row[7]
+            )
+            for row in results
+        ]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.get("/analytics/opportunity-authors", response_model=list[OpportunityAuthor])
+def get_opportunity_authors(limit: int = Query(10, ge=1, le=50)):
+    """
+    Get authors with highest coaching opportunity score (high volume, below-median engagement).
+
+    Args:
+        limit: Number of authors to return (1-50)
+
+    Returns:
+        Authors ranked by improvement potential
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Read the SQL file
+        sql_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'sql', 'volume_vs_engagement.sql')
+        with open(sql_path, 'r') as f:
+            base_query = f.read()
+
+        query = f"""
+        SELECT
+            author_id,
+            author_name,
+            author_category,
+            total_posts,
+            avg_engagement_per_post,
+            category_median,
+            opportunity_score,
+            performance_segment
+        FROM ({base_query}) AS opportunity_analysis
+        WHERE opportunity_score > 0
+        ORDER BY opportunity_score DESC
+        LIMIT %s
+        """
+
+        cursor.execute(query, (limit,))
+        results = cursor.fetchall()
+
+        return [
+            OpportunityAuthor(
+                author_id=row[0],
+                author_name=row[1],
+                category=row[2],
+                total_posts=row[3],
+                avg_engagement_per_post=float(row[4]),
+                category_median=float(row[5]),
+                opportunity_score=int(row[6]),
+                performance_segment=row[7]
             )
             for row in results
         ]
