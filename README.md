@@ -47,11 +47,13 @@ Three production-ready SQL queries that answer:
 
 ## Live Demo
 
+**Interactive Dashboard**: https://jumper-analytics.shaily.dev/dashboard
+
 **API Endpoint**: https://jumper-analytics.shaily.dev
 
-**Interactive Docs**: https://jumper-analytics.shaily.dev/docs
+**API Documentation**: https://jumper-analytics.shaily.dev/docs
 
-### Example Queries
+### Example API Queries
 
 ```bash
 # Get engagement metrics for a post
@@ -62,7 +64,29 @@ curl https://jumper-analytics.shaily.dev/author/5/trends
 
 # Top performing categories
 curl "https://jumper-analytics.shaily.dev/categories/top?limit=5"
+
+# Browse sample posts with engagement data
+curl "https://jumper-analytics.shaily.dev/sample/posts?limit=10"
+
+# Get authors with performance segmentation
+curl "https://jumper-analytics.shaily.dev/sample/authors?limit=10"
+
+# Engagement patterns by time (hourly and daily)
+curl "https://jumper-analytics.shaily.dev/analytics/engagement-patterns"
+
+# High-opportunity authors for coaching
+curl "https://jumper-analytics.shaily.dev/analytics/opportunity-authors?limit=10"
 ```
+
+### Interactive Dashboard
+
+The live dashboard at [/dashboard](https://jumper-analytics.shaily.dev/dashboard) provides:
+- Real-time visualizations with Chart.js
+- Category performance bar charts
+- Day-of-week engagement trends
+- Hour × Day heatmap for optimal posting times
+- Top authors and coaching opportunity tables
+- All data fetched from live PostgreSQL via API
 
 ---
 
@@ -333,9 +357,14 @@ jumper-analytics-assignment/
 | Method | Endpoint | Description | Response Time |
 |--------|----------|-------------|---------------|
 | `GET` | `/` | API metadata and health check | <10ms |
+| `GET` | `/dashboard` | Interactive analytics dashboard | <50ms |
 | `GET` | `/engagement/{post_id}` | Post engagement statistics | 50-100ms |
 | `GET` | `/author/{author_id}/trends` | Author performance with 7/30-day trends | 100-150ms |
 | `GET` | `/categories/top?limit=N` | Top N categories by engagement | 150-200ms |
+| `GET` | `/sample/posts?limit=N` | Browse top posts with engagement metrics | 50-100ms |
+| `GET` | `/sample/authors?limit=N` | Authors with performance segmentation | 100-150ms |
+| `GET` | `/analytics/engagement-patterns` | Hourly/daily engagement patterns | 150-200ms |
+| `GET` | `/analytics/opportunity-authors?limit=N` | High-opportunity authors for coaching | 100-150ms |
 
 ### Example Response
 
