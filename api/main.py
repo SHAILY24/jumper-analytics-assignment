@@ -8,12 +8,29 @@ Provides real-time access to engagement analytics via REST API.
 from datetime import datetime, timedelta
 from typing import Optional
 import psycopg2
+import re
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import os
+
+def load_sql_query(filepath):
+    """Load SQL query from file, removing comments and trailing semicolons."""
+    with open(filepath, 'r') as f:
+        sql = f.read()
+
+    # Remove multi-line comments /* ... */
+    sql = re.sub(r'/\*.*?\*/', '', sql, flags=re.DOTALL)
+
+    # Remove single-line comments --
+    sql = '\n'.join(line for line in sql.split('\n') if not line.strip().startswith('--'))
+
+    # Strip whitespace and trailing semicolons
+    sql = sql.strip().rstrip(';')
+
+    return sql
 
 app = FastAPI(
     title="Engagement Analytics API",
@@ -557,8 +574,7 @@ def get_engagement_patterns(
     try:
         # Read the SQL file
         sql_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'sql', 'engagement_patterns.sql')
-        with open(sql_path, 'r') as f:
-            base_query = f.read()
+        base_query = load_sql_query(sql_path)
 
         # If day_of_week filter is provided, wrap the query
         if day_of_week is not None:
@@ -609,10 +625,13 @@ def get_opportunity_authors(limit: int = Query(10, ge=1, le=50)):
     try:
         # Read the SQL file
         sql_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'sql', 'volume_vs_engagement.sql')
-        with open(sql_path, 'r') as f:
-            base_query = f.read()
+        base_query = load_sql_query(sql_path)
 
+        # Wrap the base query to filter by opportunity_score and limit results
         query = f"""
+        WITH base_results AS (
+            {base_query}
+        )
         SELECT
             author_id,
             author_name,
@@ -622,7 +641,7 @@ def get_opportunity_authors(limit: int = Query(10, ge=1, le=50)):
             category_median,
             opportunity_score,
             performance_segment
-        FROM ({base_query}) AS opportunity_analysis
+        FROM base_results
         WHERE opportunity_score > 0
         ORDER BY opportunity_score DESC
         LIMIT %s
