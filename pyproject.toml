@@ -1,0 +1,25 @@
+[project]
+name = "jumper-analytics-assignment"
+version = "1.0.0"
+description = "PostgreSQL-based engagement analytics system"
+authors = [{name = "Shaily Sharma", email = "shailysharmawork@gmail.com"}]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0.0",
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+    "plotly>=5.18.0",
+    "jupyter>=1.0.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src", "api"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
