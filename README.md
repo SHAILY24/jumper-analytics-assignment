@@ -34,15 +34,15 @@ This system solves these problems through **real-time PostgreSQL analytics** tha
 
 ### Business Intelligence Focus
 Three production-ready SQL queries that answer:
-1. **`volume_vs_engagement.sql`** - Which authors need coaching? (opportunity scoring)
-2. **`engagement_patterns.sql`** - When should we post? (time-of-day optimization)
-3. **`top_authors.sql`** - Who are our top performers? (category benchmarking)
+1. **`volume_vs_engagement.sql`**: which authors need coaching? (opportunity scoring)
+2. **`engagement_patterns.sql`**: when should we post? (time-of-day optimization)
+3. **`top_authors.sql`**: who are our top performers? (category benchmarking)
 
 ### Production Deployment
 - Docker Compose for reproducible database setup
 - HTTPS deployment with nginx reverse proxy
 - Health checks and proper error handling
-- Comprehensive deployment documentation
+- Deployment documentation
 
 ---
 
@@ -86,7 +86,7 @@ curl "http://127.0.0.1:8000/analytics/opportunity-authors?limit=10"
 
 The dashboard at [/dashboard](http://127.0.0.1:8000/dashboard) features a professional tabbed interface:
 
-**Dashboard Tab** - Real-time Analytics:
+**Dashboard Tab**, real-time analytics:
 - Interactive Chart.js visualizations with professional teal/slate design
 - Category performance bar charts with engagement metrics
 - Day-of-week engagement trends with time-series analysis
@@ -94,7 +94,7 @@ The dashboard at [/dashboard](http://127.0.0.1:8000/dashboard) features a profes
 - Top authors and coaching opportunity tables
 - All data fetched live from PostgreSQL via FastAPI
 
-**About Project Tab** - Complete Technical Documentation:
+**About Project Tab**, technical documentation:
 - Full project overview with problem statement and business impact
 - Complete database schema with visual tree structure
 - All 3 production SQL queries with syntax highlighting
@@ -214,7 +214,7 @@ FROM category_stats
 ORDER BY total_engagements DESC;
 ```
 
-**Finding**: Cross-category best practices can be shared to elevate underperformers
+**Finding**: Cross-category best practices can be shared to lift the weaker categories
 
 ---
 
@@ -332,7 +332,7 @@ curl http://127.0.0.1:8000/
 
 ### Production Deployment
 
-See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for comprehensive guide including:
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for the full deployment guide, including:
 - Port configuration with `find-port` utility
 - Nginx reverse proxy setup with SSL/TLS
 - PM2 process management
@@ -364,7 +364,7 @@ content-engagement-analytics/
 │
 ├── docker-compose.yml          # PostgreSQL 15 container config
 ├── pyproject.toml              # uv dependency management
-├── DEPLOYMENT.md               # Comprehensive deployment guide
+├── DEPLOYMENT.md               # Deployment guide
 ├── RECOMMENDATIONS.md          # Business experiment proposals
 └── CRITICAL_EVALUATION.md      # Honest technical assessment
 ```
@@ -612,7 +612,7 @@ Free to use for educational, commercial, and personal projects.
 
 ## Technical Deep Dive
 
-### Why These Specific Indexes?
+### Index choices
 
 **1. Composite Index `idx_posts_author_category`**
 ```sql
