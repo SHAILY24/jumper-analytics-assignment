@@ -8,6 +8,7 @@ Creates authors, posts, and engagements with patterns:
 - Realistic temporal distribution
 """
 
+import os
 import random
 from datetime import datetime, timedelta
 from typing import List, Tuple
@@ -143,11 +144,11 @@ CATEGORY_TAGS = {
 def get_db_connection():
     """Create PostgreSQL connection."""
     return psycopg2.connect(
-        host="127.0.0.1",
-        port=13177,
-        database="engagement_db",
-        user="analytics",
-        password="analytics_pass"
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("DB_PORT", "13267")),
+        database=os.getenv("DB_NAME", "engagement_db"),
+        user=os.getenv("DB_USER", "analytics"),
+        password=os.getenv("DB_PASSWORD", "analytics_pass")
     )
 
 

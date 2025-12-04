@@ -55,11 +55,11 @@ app.add_middleware(
 def get_db_connection():
     """Create PostgreSQL connection."""
     return psycopg2.connect(
-        host="127.0.0.1",
-        port=13177,
-        database="engagement_db",
-        user="analytics",
-        password="analytics_pass"
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("DB_PORT", "13267")),
+        database=os.getenv("DB_NAME", "engagement_db"),
+        user=os.getenv("DB_USER", "analytics"),
+        password=os.getenv("DB_PASSWORD", "analytics_pass")
     )
 
 
@@ -670,4 +670,4 @@ def get_opportunity_authors(limit: int = Query(10, ge=1, le=50)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=13516)
+    uvicorn.run(app, host="127.0.0.1", port=int(os.getenv("API_PORT", "13347")))
